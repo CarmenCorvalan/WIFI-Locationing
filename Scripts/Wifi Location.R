@@ -30,7 +30,7 @@ registerDoMC(cores=4)
 
 td <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/UJIndoorLoc/trainingData.csv")
 vd <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/UJIndoorLoc/validationData.csv")
-
+NEWDATA <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/testData.csv")
 
 #### 2.1- Deleting WAPS that are useless (=100) ####
 
@@ -110,40 +110,39 @@ validationWAP$maxWAP <- apply(validationWAP[WAPvd], 1, which.max)
 
 
 #### 5- Convert from wide to long for visualization ####
-
+names(validationWAP)
 #Test
-lttd <- melt(trainWAP, id.vars = c(466:475))
+lttd <- melt(trainWAP, id.vars = c(313:317))
 traincompletelt <-melt(td, id.vars = c(521:529))
 lttd <- filter(lttd, value != 100)
-lttd <- filter(lttd, USERID != 6)
-maxwapgrouped <- dplyr::group_by(tdwaps, maxWAP)
+# lttd <- filter(traincompletelt, USERID != 6)
+maxwapgrouped <- dplyr::group_by(trainWAP, maxWAP)
 
 #Validation
-ltvd <- melt(vdwaps, id.vars = c(368:377))
+ltvd <- melt(validationWAP, id.vars = c(313:317))
 ltvd <- filter(ltvd, value != 100)
 testcompletelt <- melt(vd, id.vars = c(521:529))
 
 
 ### 5.1 So, where are the actual routers? ###
-closeWAPS <- filter(train, value > -67) 
-closeWAPS <- filter(closeWAPS, USERID != 6)
+closeWAPS <- filter(traincompletelt, value > -67) 
 plot(closeWAPS$LONGITUDE, closeWAPS$LATITUDE)
-plot(train$USERID)
+plot(traincompletelt$USERID)
 
 WAPSoutliers <- filter(closeWAPS, value > -30)
 plot( WAPSoutliers$LATITUDE, WAPSoutliers$LONGITUDE)
 list(WAPSoutliers$USERID)
-plot(WAPSoutliers$USERID)
+plot(WAPSoutliess$USERID)
 
 #### 5.2 Separate Strong Signal WorkingWAPs data by building ####
 #BL 0
 closewaps_bld0 <- filter(closeWAPS, BUILDINGID == 0)
 
 #BL 1
-closewaps_bld1 <- filter(working_waps, BUILDINGID == 1)
+closewaps_bld1 <- filter(closeWAPS, BUILDINGID == 1)
 
 #BL2
-closewaps_bld2 <- filter(working_waps, BUILDINGID == 2)
+closewaps_bld2 <- filter(closeWAPS, BUILDINGID == 2)
 
 ##PLOTS
 
@@ -181,7 +180,7 @@ wapsfl4_bld0 <- filter(bld0complete , FLOOR==4)
 #### 6- Plots and visualization ####
 
 #Test
-ggplot(lttd, aes(x=USERID, y= abs(value)))+
+ggplot(traincompletelt, aes(x=USERID, y= abs(value)))+
   geom_bar(stat = "identity", colour = "green")
 
 ggplot(closeWAPS, aes(x=RELATIVEPOSITION, y= abs(value)))+
@@ -297,12 +296,12 @@ set.seed(123)
 # Accuracy     Kappa
 # 0.9990999 0.9985770
 # Best mtry =
-besmtry_rf <- tuneRF(trainWAP[WAP],
-                     trainWAP$BUILDINGID,
-                     stepFactor = 2,
-                     improve = TRUE,
-                     trace = TRUE,
-                     plot = T)
+# besmtry_rf <- tuneRF(trainWAP[WAP],
+#                      trainWAP$BUILDINGID,
+#                      stepFactor = 2,
+#                      improve = TRUE,
+#                      trace = TRUE,
+#                      plot = T)
 
 # Train a random forest mtry = 9
 #142 seconds
@@ -329,6 +328,8 @@ confusionMatrix(RFbuildingpred, validationWAP$BUILDINGID)
 # 208 seconds
 
 #STANDARIZE parameters from the dataset
+WAP <- grep("WAP", names(trainWAP), value = T)
+WAPS <- grep("WAP", names(validationWAP), value = T)
 preprocessKNNBuiLding <- preProcess(trainWAP[WAP],method = c("center", "scale"))
 preprocessKNNBuildingValidation <- preProcess(validationWAP[WAPS], method = c("center", "scale"))
 
@@ -373,10 +374,10 @@ perfSVMbuildingpred <- postResample(SVMbuildingpred, standKNNbldgVD$BUILDINGID)
 confusionMatrix(SVMbuildingpred, standKNNbldgVD$BUILDINGID)
 
 #SAVE MODEL - RANDOM FOREST SELECTED
-save(RFbuildingpred, file = "RF_PREDICTION_BLDG.rda")
+save(rf_building, file = "RF_PREDICTION_BLDG.rda")
 
 #### LOAD MODEL ####
-load("RF_PREDICTION_BLDG.rda")
+
 
 #### 8.1.2 CREATE NEW VALIDATION DATA SET WITH PREDICTED BUILDING ####
 
@@ -399,12 +400,12 @@ names(trainWAPFLOOR)
 # Accuracy     Kappa
 # 0.9000900 0.8600066
 #Best mtry = 34
-besmtry_rf <- tuneRF(x = trainWAPFLOOR[,-c(313)],
-                     y = trainWAPFLOOR$FLOOR,
-                     stepFactor = 2,
-                     improve = TRUE,
-                     trace = TRUE,
-                     plot = T)
+# besmtry_rf <- tuneRF(x = trainWAPFLOOR[,-c(313)],
+#                      y = trainWAPFLOOR$FLOOR,
+#                      stepFactor = 2,
+#                      improve = TRUE,
+#                      trace = TRUE,
+#                      plot = T)
 
 # Train a random forest mtry = 34
 #463 seconds
@@ -475,7 +476,7 @@ perfSVMfloorpred <- postResample(SVMfloorpred, standFLOORvd$FLOOR)
 confusionMatrix(SVMfloorpred, standFLOORvd$FLOOR)
 
 #SAVE MODEL - RANDOM FOREST SELECTED
-save(RFfloorpred, file = "RF_PREDICTION_FLOOR.rda")
+save(rf_floor, file = "RF_PREDICTION_FLOOR.rda")
 
 #### LOAD MODEL ####
 load("RF_PREDICTION_FLOOR.rda")
@@ -527,13 +528,13 @@ validationWAP3dummified <- validationWAP3[, c(1:313, 316:324)]
 #Random Forest
 names(trainWAPLATITUDERF)
 
-#Best mtry = 105
-besmtry_rf <- tuneRF(x = trainWAPLATITUDERF[, -c(313, 314)],
-                     y = trainWAPLATITUDERF$LATITUDE,
-                     stepFactor = 2, 
-                     improve = TRUE,
-                     trace = TRUE, 
-                     plot = T)
+# #Best mtry = 105
+# besmtry_rf <- tuneRF(x = trainWAPLATITUDERF[, -c(313, 314)],
+#                      y = trainWAPLATITUDERF$LATITUDE,
+#                      stepFactor = 2, 
+#                      improve = TRUE,
+#                      trace = TRUE, 
+#                      plot = T)
 
 # Train a random forest mtry = 104
 #463 seconds
@@ -625,21 +626,21 @@ validationWAPLONGITUDEdummified_nofloor <- validationWAPLONGITUDEdummified[, -c(
 #Random Forest
 
 #Best mtry = 105
-besmtry_rf <- tuneRF(trainWAPLONGITUDERF[, -c(313, 315), 
-                     trainWAPLONGITUDERF$LONGITUDE,
-                     stepFactor = 2, 
-                     improve = TRUE,
-                     trace = TRUE, 
-                     plot = T)
+# besmtry_rf <- tuneRF(trainWAPLONGITUDERF[, -c(313, 315)], 
+#                      trainWAPLONGITUDERF$LONGITUDE,
+#                      stepFactor = 2, 
+#                      improve = TRUE,
+#                      trace = TRUE, 
+#                      plot = TRUE)
 
 # Train a random forest mtry = 
 names(trainWAPLONGITUDERF)
 system.time(rf_longitude <- randomForest(x = trainWAPLONGITUDERF[, -c(313, 315)],
-                                        y = trainWAPLONGITUDERF$LONGITUDE,
-                                        importance = TRUE, 
-                                        do.trace = TRUE, 
-                                        ntree = 100, 
-                                        mtry = 53))
+                                         y = trainWAPLONGITUDERF$LONGITUDE,
+                                         importance = TRUE, 
+                                         do.trace = TRUE, 
+                                         ntree = 100, 
+                                         mtry = 105))
 
 
 # RF - LONGITUDE Prediction Model:
@@ -662,27 +663,27 @@ standarizedlongitudeWAPStd <- predict(preprocessLongitude, trainWAPLONGITUDEdumm
 standarizedlongitudeWAPSvd <- predict(preprocessLongitude, validationWAPLONGITUDEdummified[WAPSLONG])
 
 standLONGITUDEtd <- cbind(standarizedlongitudeWAPStd,
-                         BUILDINGID00 = trainWAPLONGITUDEdummified$BUILDINGID_0,
-                         BUILDINGID01 = trainWAPLONGITUDEdummified$BUILDINGID_1,
-                         BUILDINGID02 = trainWAPLONGITUDEdummified$BUILDINGID_2, 
-                         LATITUDE = trainWAPLONGITUDEdummified$LATITUDE, 
-                         LONGITUDE = trainWAPLONGITUDEdummified$LONGITUDE)
+                          BUILDINGID00 = trainWAPLONGITUDEdummified$BUILDINGID_0,
+                          BUILDINGID01 = trainWAPLONGITUDEdummified$BUILDINGID_1,
+                          BUILDINGID02 = trainWAPLONGITUDEdummified$BUILDINGID_2, 
+                          LATITUDE = trainWAPLONGITUDEdummified$LATITUDE, 
+                          LONGITUDE = trainWAPLONGITUDEdummified$LONGITUDE)
 
 names(standLONGITUDEvd)
 
 standLONGITUDEvd <- cbind(standarizedlongitudeWAPSvd, 
-                         BUILDINGID00 = validationWAPLONGITUDEdummified$BUILDINGID_0,
-                         BUILDINGID01 = validationWAPLONGITUDEdummified$BUILDINGID_1,
-                         BUILDINGID02 = validationWAPLONGITUDEdummified$BUILDINGID_2,
-                         LATITUDE = validationWAPLONGITUDEdummified$LATITUDE, 
-                         LONGITUDE = validationWAPLONGITUDEdummified$LONGITUDE)
+                          BUILDINGID00 = validationWAPLONGITUDEdummified$BUILDINGID_0,
+                          BUILDINGID01 = validationWAPLONGITUDEdummified$BUILDINGID_1,
+                          BUILDINGID02 = validationWAPLONGITUDEdummified$BUILDINGID_2,
+                          LATITUDE = validationWAPLONGITUDEdummified$LATITUDE, 
+                          LONGITUDE = validationWAPLONGITUDEdummified$LONGITUDE)
 
 #Train KNN
 system.time(knn_longitude <- train.kknn(LONGITUDE~.,
-                                       data = standLONGITUDEtd,
-                                       kernel = "optimal",
-                                       kmax = 10,
-                                       scale = FALSE))
+                                        data = standLONGITUDEtd,
+                                        kernel = "optimal",
+                                        kmax = 10,
+                                        scale = FALSE))
 
 
 
@@ -692,5 +693,137 @@ KNNlongitudepred <- predict(knn_longitude, standLONGITUDEvd)
 #Performance 
 perfKNNlongitudepred <- postResample(KNNlongitudepred, standLONGITUDEvd$LONGITUDE)
 perfKNNlongitudepred
+
+#SAVE MODEL - RANDOM FOREST SELECTED
+save(RFlongitudepred, file = "RF_PREDICTION_LONGITUDE.rda")
+
+#### LOAD MODEL ####
+load("RF_PREDICTION_LONGITUDE.rda")
+
+#### Predicting TEST NEW DATA #### 
+
+WAPND <- grep("WAP", names(NEWDATA), value = T)
+
+NEWDATA[, 1:520] <- as.data.frame(apply(
+  NEWDATA[, 1:520], 2, function(x) {ifelse(x==100, -105,x)}))
+
+NEWDATA$maxWAP <- apply(NEWDATA[WAPND], 1, which.max)
+
+str(NEWDATA)
+names(NEWDATA)
+
+PRED_BUILING <- load("RF_PREDICTION_BLDG.rda")
+
+Building <- predict(rf_building, NEWDATA)
+
+NEWDATA$BUILDINGID <- Building
+
+summary(Building)
+
+Floor <- predict(rf_floor, NEWDATA)
+NEWDATA$FLOOR <- Floor
+summary(Floor)
+
+Latitude <- predict(rf_latitude, NEWDATA)
+
+NEWDATA$LATITUDE <- Latitude
+
+Longitude <- predict(rf_longitude, NEWDATA)
+
+NEWDATA$LONGITUDE <- Longitude
+
+plot(NEWDATA$LONGITUDE, NEWDATA$LATITUDE)
+
+
+RESULTS1 <- cbind(Latitude, Longitude, Floor)
+RESULTS1
+write.csv(RESULTS1, "RESULTS_CARMEN1.csv")
+
+NEWDATA$FLOOR <- Floor
+
+Longitude2 <- predict(rf_longitude, NEWDATA)
+
+NEWDATA$LONGITUDE <- Longitude1
+
+#General
+A <- ggplot() + 
+  geom_point(aes(y = $LATITUDE, x = trainWAP$LONGITUDE),color= "red") +
+  geom_point(aes(y = NEWDATA$LATITUDE , x = NEWDATA$LONGITUDE),color= "blue") +
+  ylab("Latitude") + xlab("Longitude") +
+  ggtitle("Prediction vs Real Values")
+
+#Building0
+
+B0 <- ggplot() + 
+  geom_point(aes(y = trainWAP_B0$LATITUDE, x = trainWAP_B0$LONGITUDE),color= "red") +
+  geom_point(aes(y = newdata_b0$LATITUDE , x = newdata_b0$LONGITUDE),color= "blue") +
+  ylab("Latitude") + xlab("Longitude") +
+  ggtitle("Prediction vs Real Values BUILDING 0")
+
+B0
+#BUIDLING 1
+
+B1 <- ggplot() + 
+  geom_point(aes(y = trainWAP_B1$LATITUDE, x = trainWAP_B1$LONGITUDE),color= "red") +
+  geom_point(aes(y = newdata_b1$LATITUDE , x = newdata_b1$LONGITUDE),color= "blue") +
+  ylab("Latitude") + xlab("Longitude") +
+  ggtitle("Prediction vs Real Values BUILDING 1")
+
+B1
+
+B2 <- ggplot() + 
+  geom_point(aes(y = trainWAP_B2$LATITUDE, x = trainWAP_B2$LONGITUDE),color= "red") +
+  geom_point(aes(y = newdata_b2$LATITUDE , x = newdata_b2$LONGITUDE),color= "blue") +
+  ylab("Latitude") + xlab("Longitude") +
+  ggtitle("Prediction vs Real Values BUILDING 2")
+
+B2
+
+plot_grid(B0, B1, B2)
+
+# Filter by building 
+#NEW DATA
+newdata_b0 <- filter(NEWDATA, BUILDINGID == 0)
+newdata_b1 <- dplyr::filter(NEWDATA, BUILDINGID == 1)
+newdata_b2 <- dplyr::filter(NEWDATA, BUILDINGID == 2)
+
+#TRAIN WAPS
+
+trainWAP_B0 <- dplyr::filter(trainWAP, BUILDINGID==0)
+trainWAP_B1 <- dplyr::filter(trainWAP, BUILDINGID==1)
+trainWAP_B2 <- dplyr::filter(trainWAP, BUILDINGID==2)
+
+## Ploting
+
+a <- htmltools::tagList()
+
+for (i in unique(NEWDATA$BUILDINGID)) {
+  a[[i]] <- NEWDATA %>% dplyr::filter(BUILDINGID == i) %>% 
+    plot_ly( x = ~ LONGITUDE, 
+             y = ~ LATITUDE, 
+             z = ~ FLOOR, 
+             type = "scatter3d", 
+             mode = "markers")
+}
+
+a[[1]]
+
+
+plotb0 <- plot_ly(newdata_b0, 
+                  x= ~LONGITUDE, 
+                  y = ~LATITUDE, 
+                  z = ~FLOOR, 
+                  type = "scatter3d", 
+                  mode = "markers", 
+                  color = ~FLOOR)+
+  plot_ly(trainWAP_B0,
+          x= ~LONGITUDE, 
+          y = ~LATITUDE, 
+          z = ~FLOOR, 
+          type = "scatter3d", 
+          mode = "markers", 
+          color = ~FLOOR)
+plotb0
+
 
 
