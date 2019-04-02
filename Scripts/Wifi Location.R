@@ -28,7 +28,13 @@ registerDoMC(cores=4)
 
 #### 2- Load Data Sets ####
 
-td <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/UJIndoorLoc/trainingData.csv")
+current_path = rstudioapi::getActiveDocumentContext()$path #this is to save the working directory
+setwd(dirname(current_path))
+setwd("..")
+getwd()
+#Now Loading Datasets
+
+td <- read_csv("./Datasets/trainingData.csv")
 vd <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/UJIndoorLoc/validationData.csv")
 NEWDATA <- read_csv("~/Desktop/Ubiqum/Data Analysis/RStudio/Wifi Location/testData.csv")
 
@@ -44,6 +50,14 @@ validation_notworking_waps <- which(apply(vd [,1:520], 2, function(x) mean(x)) =
 vdwaps <- vd [, -c(validation_notworking_waps)]
 
 #### 3- Convert Variables #### 
+
+#LOOP!
+
+variables <- c("FLOOR", "BUILDINGID", "SPACEID", 
+            "RELATIVEPOSITION", "USERID", "PHONEID")
+for (v in variables) {
+  td[,v] <- as.factor(td[,v])
+}
 
 #Test
 tdwaps$FLOOR <- as.factor(tdwaps$FLOOR)
